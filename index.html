@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Single-row Piano (Keyboard Controlled)</title>
+  <title>Single-row Piano — A-row for Whites, W-row for Blacks</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     body {
@@ -14,24 +14,13 @@
       flex-direction: column;
       align-items: center;
     }
+    h1 { margin-bottom: 6px; font-size: 20px; }
+    p { margin-top: 0; margin-bottom: 12px; font-size: 14px; color: #444; }
 
-    h1 {
-      margin-bottom: 8px;
-      font-size: 20px;
-    }
-
-    p {
-      margin-top: 0;
-      margin-bottom: 12px;
-      font-size: 14px;
-      color: #444;
-    }
-
-    /* Piano container: single horizontal row */
     .piano-wrap {
       width: 100%;
       max-width: 1100px;
-      overflow-x: auto; /* allow scroll if small screen */
+      overflow-x: auto;
       border: 1px solid #ddd;
       background: linear-gradient(#fff, #fbfbfd);
       padding: 12px;
@@ -47,7 +36,6 @@
       user-select: none;
     }
 
-    /* White keys layout */
     .key {
       position: relative;
       display: inline-flex;
@@ -57,13 +45,12 @@
       border: 1px solid #bbb;
       background: linear-gradient(#fff, #eee);
       height: 160px;
-      width: 56px; /* white key width */
-      margin-right: -1px; /* remove double border */
+      width: 56px;
+      margin-right: -1px;
       cursor: pointer;
       border-radius: 4px 4px 6px 6px;
       flex: 0 0 auto;
     }
-
     .key:last-child { margin-right: 0; }
 
     .key-label {
@@ -76,17 +63,16 @@
       border-radius: 0 0 6px 6px;
     }
 
-    /* Black keys */
     .black {
       position: absolute;
       height: 100px;
-      width: 36px; /* black key width */
+      width: 36px;
       background: linear-gradient(#111, #222);
       color: #fff;
       border-radius: 4px;
       box-shadow: 0 3px 6px rgba(0,0,0,0.4);
       z-index: 2;
-      transform: translateX(50%); /* center over gap */
+      transform: translateX(50%);
       margin-left: -18px;
       border: 1px solid #000;
       display: flex;
@@ -96,7 +82,6 @@
     }
     .black .key-label { font-size: 11px; padding: 6px 2px; color: #fff; background: transparent; }
 
-    /* Pressed / active style */
     .key.active {
       background: linear-gradient(#e6f2ff, #d9ecff);
       transform: translateY(2px);
@@ -108,14 +93,8 @@
       box-shadow: inset 0 0 0 2px rgba(255,255,255,0.03);
     }
 
-    /* Small helper text */
-    .help {
-      font-size: 13px;
-      color: #555;
-      margin-top: 10px;
-    }
+    .help { font-size: 13px; color: #555; margin-top: 10px; }
 
-    /* Responsive smaller keys on mobile */
     @media (max-width: 600px) {
       .key { width: 44px; height: 120px; }
       .black { width: 28px; height: 78px; margin-left: -14px; transform: translateX(50%); }
@@ -123,114 +102,86 @@
   </style>
 </head>
 <body>
-  <h1>Single-row Piano — Play with your Keyboard</h1>
-  <p>Use the computer keyboard keys shown on each key. Click or press keys to play. Scroll horizontally if needed.</p>
+  <h1>Single-row Piano — A-row for Whites, W-row for Blacks</h1>
+  <p>White keys: A-row (a s d f g h j k l ;) — Black keys: W-row (w e t y u o p [ ). Click or press keys to play.</p>
 
   <div class="piano-wrap">
     <div id="piano" class="piano" tabindex="0" aria-label="Piano keyboard"></div>
   </div>
 
-  <div class="help">Tip: Click to focus, then use keys. Try the row: z s x d c v g b h n j m for one octave.</div>
+  <div class="help">Click to focus, then use the keyboard. Example: a s d f g h j k l ; for whites, w e t y u o p [ for blacks.</div>
 
   <script>
-    // Configuration: map computer keyboard keys to piano notes (one-row layout).
-    // We'll create 2 octaves from C4 to B5 (24 keys including black keys).
-    // The layout uses white keys in sequence. Black keys are positioned absolutely.
-    // keyMap defines keyboard key -> note name.
     (function(){
-      // Basic note frequencies (A4 = 440). Helper to calculate frequency.
       function freqFromNote(midi) {
         return 440 * Math.pow(2, (midi - 69) / 12);
       }
-
-      // Create audio context
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       const audioCtx = new AudioContext();
 
-      // Simple synth: plays a sine + slight harmonic. Short attack/release.
       function playTone(frequency, duration = 1.2) {
         if (!audioCtx) return;
         const now = audioCtx.currentTime;
         const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        // basic saw-like tone via two oscillators for warmth
         const osc2 = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
         osc.type = 'sine';
-        osc2.type = 'sawtooth'; // adds brightness
+        osc2.type = 'sawtooth';
         osc.frequency.value = frequency;
-        osc2.frequency.value = frequency * 2; // octave harmonic
+        osc2.frequency.value = frequency * 2;
         gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.exponentialRampToValueAtTime(0.8, now + 0.01); // attack
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration); // release
-
+        gain.gain.exponentialRampToValueAtTime(0.9, now + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
         const filter = audioCtx.createBiquadFilter();
         filter.type = 'lowpass';
-        filter.frequency.value = 5000;
-
+        filter.frequency.value = 6000;
         osc.connect(filter);
         osc2.connect(filter);
         filter.connect(gain);
         gain.connect(audioCtx.destination);
-
         osc.start(now);
         osc2.start(now);
         osc.stop(now + duration + 0.02);
         osc2.stop(now + duration + 0.02);
       }
 
-      // Piano key setup:
-      // We'll make an array of keys starting from C4 (midi 60) to B5 (midi 83)
-      // For each note, we store if it's black key and keyboard mapping.
       const startMidi = 60; // C4
       const endMidi = 83;   // B5
-      const keyOrder = []; // will hold objects: {midi, name, isBlack, keyChar}
-
-      // Note names for one octave
       const noteNames = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-
+      const keyOrder = [];
       for (let m = startMidi; m <= endMidi; m++) {
         const name = noteNames[m % 12];
         const isBlack = name.includes('#');
         keyOrder.push({ midi: m, name: name + Math.floor(m/12), isBlack });
       }
 
-      // Map computer keyboard keys to notes (left to right).
-      // Choose a common mapping similar to many piano apps.
-      // We give the user two rows of letters but arranged linear in one row visual.
-      // The mapping array length must match the number of keys (24).
-      const kbMap = [
-        'z','s','x','d','c','v','g','b','h','n','j','m', // C4 - B4 (one octave)
-        ',','l','.',';','/','q','2','w','3','e','r','5'  // C5 - B5 (second octave)
-      ];
+      // Define A-row (white) and W-row (black) arrays.
+      const aRow = ['a','s','d','f','g','h','j','k','l',';','\'','\\']; // more than needed but safe
+      const wRow = ['w','e','t','y','u','o','p','[',']','/']; // black keys mapping order
 
-      if (kbMap.length !== keyOrder.length) {
-        console.warn('Keyboard map length does not match number of piano keys.');
-      }
-
-      // Build piano HTML
-      const piano = document.getElementById('piano');
-      piano.innerHTML = ''; // clear
-
-      // We'll create white key containers left-to-right.
-      // For positioning black keys, we need to place them relative to white keys.
-      // Strategy: iterate through notes, create white keys as main inline elements.
-      // For black keys, create absolute div and position it using left offset of the white key.
-      const whiteKeys = []; // store DOM nodes for white keys (to compute positions)
-      const keyElements = {}; // map keyboard char -> element and midi
-
-      keyOrder.forEach((k, idx) => {
-        const kb = kbMap[idx] || ''; // keyboard key
-        k.keyChar = kb;
+      // Build a mapping left-to-right. For each key in keyOrder, if white assign next from aRow,
+      // if black assign next from wRow. If rows run out, leave unmapped.
+      let ai = 0, wi = 0;
+      keyOrder.forEach(k => {
+        if (k.isBlack) {
+          k.keyChar = (wi < wRow.length) ? wRow[wi++] : '';
+        } else {
+          k.keyChar = (ai < aRow.length) ? aRow[ai++] : '';
+        }
       });
 
-      // Create white keys first, but keep black keys for later placement
-      keyOrder.forEach((k, idx) => {
+      const piano = document.getElementById('piano');
+      piano.innerHTML = '';
+      const whiteKeys = [];
+      const keyElements = {};
+
+      keyOrder.forEach((k) => {
         if (!k.isBlack) {
           const div = document.createElement('div');
           div.className = 'key';
           div.dataset.midi = k.midi;
           div.dataset.note = k.name;
-          div.dataset.kb = k.keyChar;
+          div.dataset.kb = k.keyChar || '';
           div.tabIndex = 0;
           const label = document.createElement('div');
           label.className = 'key-label';
@@ -242,22 +193,10 @@
         }
       });
 
-      // Now create black keys and position them over white keys.
-      // Black keys appear between certain white keys:
-      // There is a black key after C (between C and D), after D, none after E, after F, after G, after A, none after B.
-      // We'll find the correct white key index to place each black key.
-      // For each note that's black, find the white key immediately to its left.
       keyOrder.forEach((k, idx) => {
         if (k.isBlack) {
-          // Find nearest previous white key element
-          let leftIndex = -1;
-          for (let i = idx - 1; i >= 0; i--) {
-            if (!keyOrder[i].isBlack) { leftIndex = i; break; }
-          }
-          // Determine the corresponding white key DOM element to attach to.
-          // Count how many white keys before this black key to compute offset.
           const whitesBefore = keyOrder.slice(0, idx).filter(x => !x.isBlack).length;
-          const attachWhite = whiteKeys[whitesBefore - 1]; // the white key on left
+          const attachWhite = whiteKeys[whitesBefore - 1];
           if (!attachWhite) return;
           const black = document.createElement('div');
           black.className = 'key black';
@@ -268,53 +207,34 @@
           label.className = 'key-label';
           label.innerText = (k.keyChar ? k.keyChar.toUpperCase() + ' • ' : '') + k.name;
           black.appendChild(label);
-          // Position: place black as child of piano and set left offset relative to piano
-          // Compute left position by summing white key offsets up to attachWhite
           piano.appendChild(black);
-          // We'll set CSS left after layout to get actual positions.
           if (k.keyChar) keyElements[k.keyChar.toLowerCase()] = {el: black, midi: k.midi};
         }
       });
 
-      // After adding all keys, position blacks properly.
       function positionBlackKeys() {
         const allWhiteEls = Array.from(piano.querySelectorAll('.key:not(.black)'));
         const blackEls = Array.from(piano.querySelectorAll('.black'));
         blackEls.forEach(black => {
           const midi = parseInt(black.dataset.midi,10);
-          // Find index of black in keyOrder
           const idx = keyOrder.findIndex(x => x.midi === midi);
-          // Compute how many white keys before this black
           const whitesBefore = keyOrder.slice(0, idx).filter(x => !x.isBlack).length;
-          // The left white key element is whitesBefore-1
           const leftWhiteEl = allWhiteEls[whitesBefore - 1];
           if (!leftWhiteEl) return;
-          // Position black at (leftWhite.offsetLeft + whiteWidth) - half black width
           const left = leftWhiteEl.offsetLeft + leftWhiteEl.offsetWidth;
-          // But we want black over the gap between left and next white. So shift left by half black width.
           const blackWidth = black.offsetWidth;
           black.style.left = (left - blackWidth / 2) + 'px';
         });
       }
-
-      // Call once and on resize
-      window.addEventListener('resize', () => {
-        positionBlackKeys();
-      });
-      // Wait a tick for layout
+      window.addEventListener('resize', positionBlackKeys);
       setTimeout(positionBlackKeys, 50);
 
-      // Active keys tracking for keyboard events
-      const activeKeys = {}; // midi -> timeout id or true
-
+      const activeKeys = {};
       function noteOn(midi) {
         const frequency = freqFromNote(midi);
-        // Simple polyphonic synth: play tone
         playTone(frequency, 1.2);
-        // Visual: find element(s) with this midi
         const els = Array.from(piano.querySelectorAll('[data-midi="' + midi + '"]'));
         els.forEach(el => el.classList.add('active'));
-        // Remove active after 400ms visual (sustain is audio longer)
         if (activeKeys[midi]) clearTimeout(activeKeys[midi]);
         activeKeys[midi] = setTimeout(() => {
           els.forEach(el => el.classList.remove('active'));
@@ -322,25 +242,22 @@
         }, 420);
       }
 
-      // Click / mouse events
       piano.addEventListener('pointerdown', (ev) => {
         const key = ev.target.closest('.key');
         if (!key) return;
         const midi = parseInt(key.dataset.midi,10);
-        // Resume audio context if needed (browser requires user gesture)
         if (audioCtx.state === 'suspended') audioCtx.resume();
         noteOn(midi);
       });
 
-      // Keyboard events: use keydown to trigger note, prevent repeats
-      const pressed = {}; // map physical keyboard key to boolean
-
+      const pressed = {};
       window.addEventListener('keydown', (ev) => {
-        // Ignore if typing in an input (none here) or if repeating
         if (ev.repeat) return;
+        // don't capture if typing in input-like element
+        const tag = (ev.target && ev.target.tagName) || '';
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || ev.target.isContentEditable) return;
         const k = ev.key.toLowerCase();
         if (!k) return;
-        // Try to find mapping
         const mapped = keyElements[k];
         if (mapped) {
           ev.preventDefault();
@@ -350,24 +267,18 @@
           noteOn(mapped.midi);
         }
       });
-
       window.addEventListener('keyup', (ev) => {
         const k = ev.key.toLowerCase();
         if (!k) return;
         if (pressed[k]) delete pressed[k];
       });
 
-      // Also support focus and click to enable audio in some browsers
       piano.addEventListener('click', () => {
         if (audioCtx.state === 'suspended') audioCtx.resume();
       });
 
-      // Provide simple visual for mapped keys that are not visible (sparse)
-      // If you want to show all keyboard letters in order left-to-right, they are already on labels.
-
-      // For debugging: log map
-      // console.log('Key mapping:', keyElements);
-
+      // For debugging, you can open console to see mapping:
+      // console.log('Mapping:', keyOrder.map(k=>({note:k.name,key:k.keyChar})));
     })();
   </script>
 </body>
