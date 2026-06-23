@@ -2,36 +2,41 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Single-row Piano with Play & BPM</title>
+    <title>Single-row Piano (Fixed)</title>
     <style>
         body { font-family: sans-serif; text-align: center; background: #f9f9f9; padding: 20px; }
         .controls { margin-bottom: 20px; display: flex; justify-content: center; gap: 15px; align-items: center; }
         .controls input[type="number"] { width: 60px; padding: 5px; text-align: center; }
-        .controls button { padding: 6px 15px; cursor: pointer; font-weight: bold; }
+        .controls button { padding: 6px 15px; cursor: pointer; font-weight: bold; border-radius: 4px; border: 1px solid #ccc; }
+        #play-btn { background-color: #e3faf2; color: #0ca678; border-color: #96f2d7; }
+        #stop-btn { background-color: #fff5f5; color: #fa5252; border-color: #ffc9c9; }
         
-        /* 簡易キーボード全体のコンテナ */
+        /* ピアノ全体のコンテナ */
         .piano-container { display: flex; position: relative; justify-content: center; margin: 0 auto; width: fit-content; background: #fff; padding: 10px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         
         /* 白鍵のスタイル */
-        .key { width: 40px; height: 180px; border: 1px solid #ccc; background: white; box-sizing: border-box; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; padding-bottom: 10px; font-size: 11px; cursor: pointer; user-select: none; }
+        .key { width: 45px; height: 180px; border: 1px solid #ccc; background: white; box-sizing: border-box; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; padding-bottom: 10px; font-size: 11px; cursor: pointer; user-select: none; position: relative; z-index: 1; }
         .key.active { background: #ddd; }
 
-        /* 黒鍵のスタイル（白鍵の上に絶対配置で重ねる） */
-        .key.black { width: 28px; height: 110px; background: #222; color: white; position: absolute; z-index: 2; margin-left: -14px; border-radius: 0 0 3px 3px; }
+        /* 黒鍵のスタイル（白鍵の隙間に絶対配置） */
+        .key.black { width: 30px; height: 110px; background: #222; color: white; position: absolute; z-index: 2; border-radius: 0 0 4px 4px; }
         .key.black.active { background: #555; }
         
-        /* 黒鍵の配置調整用のマージン（白鍵の並びに対する相対位置） */
-        /* ※スクショの並び順（C#5, D#5, (空き), F#5, G#5, A#5...）に準拠 */
-        .m-1 { margin-left: 26px; }
-        .m-2 { margin-left: 66px; }
-        .m-3 { margin-left: 146px; }
-        .m-4 { margin-left: 186px; }
-        .m-5 { margin-left: 226px; }
-        .m-6 { margin-left: 306px; }
-        .m-7 { margin-left: 346px; }
-        .m-8 { margin-left: 426px; }
-        .m-9 { margin-left: 466px; }
-        .m-10 { margin-left: 506px; }
+        /* 黒鍵の正しい配置（白鍵の左端からのピクセル位置で指定） */
+        /* 45px（白鍵幅）ベースで、2つ・3つの塊をきれいに配置 */
+        .k-cs5 { left: 40px; }  /* C#5 */
+        .k-ds5 { left: 85px; }  /* D#5 */
+        
+        .k-fs5 { left: 175px; } /* F#5 */
+        .k-gs5 { left: 220px; } /* G#5 */
+        .k-as5 { left: 265px; } /* A#5 */
+
+        .k-cs6 { left: 355px; } /* C#6 */
+        .k-ds6 { left: 400px; } /* D#6 */
+
+        .k-fs6 { left: 490px; } /* F#6 */
+        .k-gs6 { left: 535px; } /* G#6 */
+        .k-as6 { left: 580px; } /* A#6 */
     </style>
 </head>
 <body>
@@ -41,73 +46,68 @@
 
     <div class="controls">
         <button id="play-btn">▶ Play</button>
+        <button id="stop-btn">■ Stop</button>
         <label>BPM: <input type="number" id="bpm-input" value="120" min="40" max="240"></label>
         <label>音を伸ばす(サステイン): <input type="checkbox" id="sustain-check" checked></label>
     </div>
 
     <div class="piano-container">
         <div class="key" data-key="a" data-note="C5">A<br>C5</div>
-        <div class="key black m-1" data-key="w" data-note="C#5">W<br>C#5</div>
         <div class="key" data-key="s" data-note="D5">S<br>D5</div>
-        <div class="key black m-2" data-key="e" data-note="D#5">E<br>D#5</div>
         <div class="key" data-key="d" data-note="E5">D<br>E5</div>
-        
         <div class="key" data-key="f" data-note="F5">F<br>F5</div>
-        <div class="key black m-3" data-key="t" data-note="F#5">T<br>F#5</div>
         <div class="key" data-key="g" data-note="G5">G<br>G5</div>
-        <div class="key black m-4" data-key="y" data-note="G#5">Y<br>G#5</div>
         <div class="key" data-key="h" data-note="A5">H<br>A5</div>
-        <div class="key black m-5" data-key="u" data-note="A#5">U<br>A#5</div>
         <div class="key" data-key="j" data-note="B5">J<br>B5</div>
-
         <div class="key" data-key="k" data-note="C6">K<br>C6</div>
-        <div class="key black m-6" data-key="o" data-note="C#6">O<br>C#6</div>
         <div class="key" data-key="l" data-note="D6">L<br>D6</div>
-        <div class="key black m-7" data-key="p" data-note="D#6">P<br>D#6</div>
         <div class="key" data-key=";" data-note="E6">;<br>E6</div>
-
         <div class="key" data-key="'" data-note="F6">'<br>F6</div>
-        <div class="key black m-8" data-key="[" data-note="F#6">[<br>F#6</div>
         <div class="key" data-key="\" data-note="G6">\<br>G6</div>
-        <div class="key black m-9" data-key="]" data-note="G#6">]<br>G#6</div>
-        <div class="key" data-key="a_alt" data-note="A6">A6</div> <div class="key black m-10" data-key="/" data-note="A#6">/<br>A#6</div>
+        <div class="key" data-key="a_alt" data-note="A6">A6</div>
         <div class="key" data-key="b_alt" data-note="B6">B6</div>
+
+        <div class="key black k-cs5" data-key="w" data-note="C#5">W<br>C#5</div>
+        <div class="key black k-ds5" data-key="e" data-note="D#5">E<br>D#5</div>
+        
+        <div class="key black k-fs5" data-key="t" data-note="F#5">T<br>F#5</div>
+        <div class="key black k-gs5" data-key="y" data-note="G#5">Y<br>G#5</div>
+        <div class="key black k-as5" data-key="u" data-note="A#5">U<br>A#5</div>
+
+        <div class="key black k-cs6" data-key="o" data-note="C#6">O<br>C#6</div>
+        <div class="key black k-ds6" data-key="p" data-note="D#6">P<br>D#6</div>
+
+        <div class="key black k-fs6" data-key="[" data-note="F#6">[<br>F#6</div>
+        <div class="key black k-gs6" data-key="]" data-note="G#6">]<br>G#6</div>
+        <div class="key black k-as6" data-key="/" data-note="A#6">/<br>A#6</div>
     </div>
 
     <script>
-        // --- 音階と周波数のマッピング ---
+        // --- 音階と周波数 ---
         const noteFreqs = {
-            "C5": 523.25, "C#5": 554.37, "D5": 587.33, "D#5": 622.25, "E5": 659.25, "F5": 698.46, "F#5": 739.99, "G5": 783.99, "G#5": 830.61, "A5": 440.00 * 2, "A#5": 932.33, "B5": 987.77,
+            "C5": 523.25, "C#5": 554.37, "D5": 587.33, "D#5": 622.25, "E5": 659.25, "F5": 698.46, "F#5": 739.99, "G5": 783.99, "G#5": 830.61, "A5": 880.00, "A#5": 932.33, "B5": 987.77,
             "C6": 1046.50, "C#6": 1108.73, "D6": 1174.66, "D#6": 1244.51, "E6": 1318.51, "F6": 1396.91, "F#6": 1479.98, "G6": 1567.98, "G#6": 1661.22, "A6": 1760.00, "A#6": 1864.66, "B6": 1975.53
         };
 
-        // --- Web Audio API の初期化 ---
         let audioCtx = null;
-        const activeNodes = {}; // 現在鳴っている音の管理用
+        const activeNodes = {}; 
 
         function initAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
 
-        // --- 音を鳴らす関数（サステイン対応） ---
+        // --- 音を鳴らす ---
         function playNote(note) {
             initAudio();
             if (!noteFreqs[note]) return;
-
-            // すでに同じ音が鳴っている場合は一度止める
-            if (activeNodes[note]) {
-                stopNote(note);
-            }
+            if (activeNodes[note]) stopNote(note);
 
             const osc = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
 
-            osc.type = 'triangle'; // ピアノに近い少し柔らかい波形
+            osc.type = 'triangle'; 
             osc.frequency.setValueAtTime(noteFreqs[note], audioCtx.currentTime);
 
-            // アタック（音の立ち上がりを滑らかに）
             gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
             gainNode.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.02);
 
@@ -115,22 +115,19 @@
             gainNode.connect(audioCtx.destination);
             osc.start();
 
-            // ノードを記憶
             activeNodes[note] = { osc, gainNode };
 
-            // 画面上の鍵盤を光らせる
             const keyEl = document.querySelector(`.key[data-note="${note}"]`);
             if (keyEl) keyEl.classList.add('active');
         }
 
-        // --- 音を止める関数（音を伸ばす機能のコア） ---
+        // --- 音を止める（サステイン機能付き） ---
         function stopNote(note) {
             const node = activeNodes[note];
             if (!node) return;
 
             const sustainOn = document.getElementById('sustain-check').checked;
-            // サステインONなら1.2秒かけて余韻を残す、OFFなら0.1秒で素早く消す
-            const releaseTime = sustainOn ? 1.2 : 0.1; 
+            const releaseTime = sustainOn ? 1.2 : 0.1; // サステインONなら1.2秒かけて綺麗に消える
 
             const now = audioCtx.currentTime;
             node.gainNode.gain.cancelScheduledValues(now);
@@ -140,21 +137,18 @@
             node.osc.stop(now + releaseTime);
             delete activeNodes[note];
 
-            // 画面の鍵盤の光を消す
             const keyEl = document.querySelector(`.key[data-note="${note}"]`);
             if (keyEl) keyEl.classList.remove('active');
         }
 
-        // --- 3. パソコンのキーボードとの連携 ---
+        // --- キーボード連携 ---
         const pressedKeys = new Set();
-        
         window.addEventListener('keydown', (e) => {
-            if (e.repeat) return; // 長押しによる連打を防止
+            if (e.repeat) return;
             const key = e.key.toLowerCase();
             const keyEl = document.querySelector(`.key[data-key="${key}"]`);
             if (keyEl) {
-                const note = keyEl.getAttribute('data-note');
-                playNote(note);
+                playNote(keyEl.getAttribute('data-note'));
                 pressedKeys.add(key);
             }
         });
@@ -163,15 +157,12 @@
             const key = e.key.toLowerCase();
             if (pressedKeys.has(key)) {
                 const keyEl = document.querySelector(`.key[data-key="${key}"]`);
-                if (keyEl) {
-                    const note = keyEl.getAttribute('data-note');
-                    stopNote(note);
-                }
+                if (keyEl) stopNote(keyEl.getAttribute('data-note'));
                 pressedKeys.delete(key);
             }
         });
 
-        // 画面クリックでも音が鳴るようにイベント追加
+        // マウスクリック対応
         document.querySelectorAll('.key').forEach(keyEl => {
             const note = keyEl.getAttribute('data-note');
             keyEl.addEventListener('mousedown', () => playNote(note));
@@ -179,42 +170,54 @@
             keyEl.addEventListener('mouseleave', () => stopNote(note));
         });
 
-
-        // --- 4. 自動再生 (Playボタン) & BPM機能 ---
-        // デモ用の簡単な楽譜データ（音名と、鳴らすタイミングの拍数）
+        // --- 自動再生 (BPM & Stop 機能修正) ---
+        // テスト用メロディ (キラキラ星の冒頭)
         const demoMelody = [
-            { note: 'C5', beat: 0 }, { note: 'E5', beat: 1 }, { note: 'G5', beat: 2 }, { note: 'C6', beat: 3 },
-            { note: 'E6', beat: 4 }, { note: 'D6', beat: 5.5 }, { note: 'C6', beat: 6 }, { note: 'G5', beat: 7 }
+            { note: 'C5', beat: 0 }, { note: 'C5', beat: 1 },
+            { note: 'G5', beat: 2 }, { note: 'G5', beat: 3 },
+            { note: 'A5', beat: 4 }, { note: 'A5', beat: 5 },
+            { note: 'G5', beat: 6 }
         ];
 
         let playTimers = [];
 
-        document.getElementById('play-btn').addEventListener('click', () => {
-            initAudio();
-            
-            // すでに再生中のタイマーがあればクリア
+        function stopAllTimers() {
+            // すべての再生タイマーを解除
             playTimers.forEach(t => clearTimeout(t));
             playTimers = [];
+            // 現在鳴っている音をすべて強制ストップ
+            Object.keys(activeNodes).forEach(note => stopNote(note));
+        }
 
+        // Playボタン
+        document.getElementById('play-btn').addEventListener('click', () => {
+            stopAllTimers(); // 二重再生防止
+            initAudio();
+            
+            // 入力されたBPMをリアルタイムに取得して計算
             const bpm = parseFloat(document.getElementById('bpm-input').value) || 120;
-            const secondsPerBeat = 60 / bpm; // 1拍あたりの秒数
+            const secondsPerBeat = 60 / bpm; 
 
             demoMelody.forEach(item => {
-                // 拍数 × 1拍の秒数 × 1000 = ミリ秒単位の遅延時間
                 const delay = item.beat * secondsPerBeat * 1000;
 
-                // 音を鳴らすタイマー
+                // ノートONタイマー
                 const startTimer = setTimeout(() => {
                     playNote(item.note);
                 }, delay);
 
-                // 音を止めるタイマー（次の音の少し前、または一定時間後）
+                // ノートOFFタイマー（次の拍の手前で指を離す）
                 const stopTimer = setTimeout(() => {
                     stopNote(item.note);
                 }, delay + (secondsPerBeat * 0.8 * 1000));
 
                 playTimers.push(startTimer, stopTimer);
             });
+        });
+
+        // Stopボタン
+        document.getElementById('stop-btn').addEventListener('click', () => {
+            stopAllTimers();
         });
     </script>
 </body>
