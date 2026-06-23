@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Single-row Piano (Fixed)</title>
+    <title>Single-row Piano (Complete Version)</title>
     <style>
         body { font-family: sans-serif; text-align: center; background: #f9f9f9; padding: 20px; }
         .controls { margin-bottom: 20px; display: flex; justify-content: center; gap: 15px; align-items: center; }
@@ -22,8 +22,7 @@
         .key.black { width: 30px; height: 110px; background: #222; color: white; position: absolute; z-index: 2; border-radius: 0 0 4px 4px; }
         .key.black.active { background: #555; }
         
-        /* 黒鍵の正しい配置（白鍵の左端からのピクセル位置で指定） */
-        /* 45px（白鍵幅）ベースで、2つ・3つの塊をきれいに配置 */
+        /* 黒鍵の配置（白鍵の左端からのピクセル位置：2個・3個の塊をきれいに配置） */
         .k-cs5 { left: 40px; }  /* C#5 */
         .k-ds5 { left: 85px; }  /* D#5 */
         
@@ -82,7 +81,95 @@
         <div class="key black k-as6" data-key="/" data-note="A#6">/<br>A#6</div>
     </div>
 
-// --- 自動再生 (Web Audio API の正確なタイムラインを使用) ---
+    <script>
+        // --- 音階と周波数 ---
+        const noteFreqs = {
+            "C5": 523.25, "C#5": 554.37, "D5": 587.33, "D#5": 622.25, "E5": 659.25, "F5": 698.46, "F#5": 739.99, "G5": 783.99, "G#5": 830.61, "A5": 880.00, "A#5": 932.33, "B5": 987.77,
+            "C6": 1046.50, "C#6": 1108.73, "D6": 1174.66, "D#6": 1244.51, "E6": 1318.51, "F6": 1396.91, "F#6": 1479.98, "G6": 1567.98, "G#6": 1661.22, "A6": 1760.00, "A#6": 1864.66, "B6": 1975.53
+        };
+
+        let audioCtx = null;
+        const activeNodes = {}; 
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        // --- 音を鳴らす（手動演奏用） ---
+        function playNote(note) {
+            initAudio();
+            if (!noteFreqs[note]) return;
+            if (activeNodes[note]) stopNote(note);
+
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            osc.type = 'triangle'; 
+            osc.frequency.setValueAtTime(noteFreqs[note], audioCtx.currentTime);
+
+            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.02);
+
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            osc.start();
+
+            activeNodes[note] = { osc, gainNode };
+
+            const keyEl = document.querySelector(`.key[data-note="${note}"]`);
+            if (keyEl) keyEl.classList.add('active');
+        }
+
+        // --- 音を止める（手動演奏・サステイン用） ---
+        function stopNote(note) {
+            const node = activeNodes[note];
+            if (!node) return;
+
+            const sustainOn = document.getElementById('sustain-check').checked;
+            const releaseTime = sustainOn ? 1.2 : 0.1; 
+
+            const now = audioCtx.currentTime;
+            node.gainNode.gain.cancelScheduledValues(now);
+            node.gainNode.gain.setValueAtTime(node.gainNode.gain.value, now);
+            node.gainNode.gain.exponentialRampToValueAtTime(0.001, now + releaseTime);
+
+            node.osc.stop(now + releaseTime);
+            delete activeNodes[note];
+
+            const keyEl = document.querySelector(`.key[data-note="${note}"]`);
+            if (keyEl) keyEl.classList.remove('active');
+        }
+
+        // --- パソコンのキーボード連携 ---
+        const pressedKeys = new Set();
+        window.addEventListener('keydown', (e) => {
+            if (e.repeat) return;
+            const key = e.key.toLowerCase();
+            const keyEl = document.querySelector(`.key[data-key="${key}"]`);
+            if (keyEl) {
+                playNote(keyEl.getAttribute('data-note'));
+                pressedKeys.add(key);
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            if (pressedKeys.has(key)) {
+                const keyEl = document.querySelector(`.key[data-key="${key}"]`);
+                if (keyEl) stopNote(keyEl.getAttribute('data-note'));
+                pressedKeys.delete(key);
+            }
+        });
+
+        // 画面マウス対応
+        document.querySelectorAll('.key').forEach(keyEl => {
+            const note = keyEl.getAttribute('data-note');
+            keyEl.addEventListener('mousedown', () => playNote(note));
+            keyEl.addEventListener('mouseup', () => stopNote(note));
+            keyEl.addEventListener('mouseleave', () => stopNote(note));
+        });
+
+        // --- 自動再生 (Web Audio API のタイムラインによる正確なBPM追従) ---
         // テスト用メロディ (キラキラ星の冒頭: 拍単位で指定)
         const demoMelody = [
             { note: 'C5', beat: 0 }, { note: 'C5', beat: 1 },
@@ -91,82 +178,78 @@
             { note: 'G5', beat: 6 }
         ];
 
-        let scheduledNodes = []; // 自動再生中の音源ノードを管理する配列
-        let UIAnimationTimers = []; // 鍵盤を光らせるためのタイマー配列
+        let scheduledNodes = []; 
+        let UIAnimationTimers = []; 
 
         function stopAllMusic() {
-            // 1. Web Audio API側で予約されている音をすべて即座にストップ
+            // 1. 自動再生中の音源ノードをすべて強制ストップ
             scheduledNodes.forEach(node => {
                 try { node.osc.stop(); } catch(e) {}
             });
             scheduledNodes = [];
 
-            // 2. 画面を光らせるためのタイマー(setTimeout)をすべて解除
+            // 2. 画面を光らせるタイマー(setTimeout)をすべて解除
             UIAnimationTimers.forEach(t => clearTimeout(t));
             UIAnimationTimers = [];
 
-            // 3. 手動で鳴らしている音も含めてすべて消音
+            // 3. 手動で残っている音も消音
             Object.keys(activeNodes).forEach(note => stopNote(note));
             
-            // 4. すべての鍵盤の光るエフェクトをリセット
+            // 4. キーボードの表示を一斉クリア
             document.querySelectorAll('.key').forEach(keyEl => keyEl.classList.remove('active'));
         }
 
-        // ▶ Playボタンのクリックイベント
+        // ▶ Playボタン
         document.getElementById('play-btn').addEventListener('click', () => {
-            stopAllMusic(); // 二重再生を防ぐためにまずリセット
+            stopAllMusic(); 
             initAudio();
 
-            // 現在の入力欄から最新のBPMを取得し、1拍あたりの秒数を計算
+            // 入力欄のBPM値を取得して1拍の秒数を計算
             const bpm = parseFloat(document.getElementById('bpm-input').value) || 120;
             const secondsPerBeat = 60 / bpm; 
 
-            // 再生を開始する「今」の絶対時間を取得
-            const startTime = audioCtx.currentTime + 0.1; // 100msのバッファを持たせて滑らかに開始
+            // 再生を開始する絶対時間
+            const startTime = audioCtx.currentTime + 0.05;
 
             demoMelody.forEach(item => {
                 if (!noteFreqs[item.note]) return;
 
-                // 拍数から、この音が鳴るべき正確な「秒数」を計算
                 const noteStartTime = startTime + (item.beat * secondsPerBeat);
-                const noteStopTime = noteStartTime + (secondsPerBeat * 0.8); // 1拍の80%の長さだけ鳴らす
+                const noteStopTime = noteStartTime + (secondsPerBeat * 0.8); // 1拍の8割の長さ鳴らす
 
-                // --- 音源（オシレーター）のスケジュール設定 ---
+                // オーディオグラフの生成
                 const osc = audioCtx.createOscillator();
                 const gainNode = audioCtx.createGain();
 
                 osc.type = 'triangle';
                 osc.frequency.setValueAtTime(noteFreqs[item.note], noteStartTime);
 
-                // 音量のスケジュール（アタックとリリース）
+                // 正確な音量変化（アタックとリリース）の予約
                 gainNode.gain.setValueAtTime(0, startTime);
                 gainNode.gain.setValueAtTime(0, noteStartTime);
-                gainNode.gain.linearRampToValueAtTime(0.4, noteStartTime + 0.02); // 立ち上がり
+                gainNode.gain.linearRampToValueAtTime(0.4, noteStartTime + 0.02); 
                 gainNode.gain.setValueAtTime(0.4, noteStopTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.001, noteStopTime + 0.1); // 余韻
+                gainNode.gain.exponentialRampToValueAtTime(0.001, noteStopTime + 0.1); 
 
                 osc.connect(gainNode);
                 gainNode.connect(audioCtx.destination);
 
-                // 正確なWeb Audioのタイムライン上で再生・停止を予約
+                // タイムライン上で再生を予約
                 osc.start(noteStartTime);
                 osc.stop(noteStopTime + 0.1);
 
-                // ストップボタン用にノードを記憶
                 scheduledNodes.push({ osc, gainNode });
 
-                // --- 画面上の鍵盤をタイミングよく光らせる処理 ---
+                // 画面の鍵盤を音と同期して光らせる処理
                 const delayToSyncUI = (noteStartTime - audioCtx.currentTime) * 1000;
                 const delayToStopUI = (noteStopTime - audioCtx.currentTime) * 1000;
 
                 const keyEl = document.querySelector(`.key[data-note="${item.note}"]`);
                 if (keyEl) {
-                    // 音が鳴る瞬間に鍵盤を光らせる
                     const startTimer = setTimeout(() => {
                         keyEl.classList.add('active');
                     }, delayToSyncUI);
 
-                    // 音が止まる瞬間に鍵盤の光を消す
                     const stopTimer = setTimeout(() => {
                         keyEl.classList.remove('active');
                     }, delayToStopUI);
@@ -176,7 +259,10 @@
             });
         });
 
-        // ■ Stopボタンのクリックイベント
+        // ■ Stopボタン
         document.getElementById('stop-btn').addEventListener('click', () => {
             stopAllMusic();
         });
+    </script>
+</body>
+</html>
